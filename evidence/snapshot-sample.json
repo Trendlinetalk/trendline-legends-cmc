@@ -1,0 +1,17 @@
+{
+  "source": "pro",
+  "captured_at_utc": "2026-11-23T16:32:05Z",
+  "endpoints": [
+    "/v3/cryptocurrency/quotes/latest?id=1,1027&convert=USD",
+    "/v1/global-metrics/quotes/latest?convert=USD",
+    "/v3/fear-and-greed/latest"
+  ],
+  "metrics": {
+    "btc_price": { "value": 62549.70, "change_24h_pct": 2.21, "last_updated": "2026-11-23T16:32:05Z" },
+    "eth_price": { "value": 1771.16, "change_24h_pct": 2.95, "last_updated": "2026-11-23T16:32:05Z" },
+    "btc_volume_24h": { "value": 41330000000, "last_updated": "2026-11-23T16:32:05Z" },
+    "btc_dominance": { "value": 58.83, "change_24h": -0.09, "last_updated": "2026-11-23T16:31:59Z" },
+    "fear_greed": { "value": 11, "classification": "Extreme fear", "last_updated": "2026-11-23T16:23:10Z" }
+  },
+  "note": "Values as read by the app's collector in a test run (no questions created, no XP paid). Rounded as displayed."
+}
