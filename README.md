@@ -31,7 +31,17 @@ A single call to `/quotes/latest` gives you a price. Trendline Legends runs a da
    which always closes **12 h before** the reference close.
 5. **Resolution** (next 00:00 UTC snapshot): compares the new CMC value with the reference value,
    scores every answer, explains the outcome and updates XP, streaks and the 30-day **accuracy ranking**.
-6. **Calibration tracking**: players and the tutor agent are compared on hit rate and Brier score.
+6. **Calibration tracking**: players and the tutor agent are compared on hit rate and Brier score,
+   next to the coin-flip baseline (50% → Brier 0.250).
+
+### How the tutor agent sets its own confidence
+
+The agent forecasts every question too, and is held to the same proper scoring rule. Its confidence is
+derived from objective signals in the snapshot (24h change, Fear & Greed at an extreme, dominance change):
+**55% by default, 60% when two signals agree, 65% with three or more — never higher.** A circuit breaker
+locks it at 55% whenever its Brier score over the last 20 resolved questions is worse than a coin flip
+(0.25). Each question stores the signals used and the rule applied, shown to the student as
+"Why the tutor chose X% confidence".
 
 ## Scoring (proper Brier rule)
 
@@ -65,6 +75,10 @@ paid plans have **no influence** on scores or ranking.
   dashboard: `GET /v3/cryptocurrency/quotes/latest?id=1&convert=USD`, **HTTP 200**, 1 credit, 23 Nov 2026.
 - [`evidence/snapshot-sample.json`](evidence/snapshot-sample.json) — values read in a real Pro API collection
   on 23 Nov 2026 (16:32 UTC).
+- **Live API call log (public JSON):** https://trade-legend-quest.base44.app/functions/obterEvidencias —
+  the last 50 calls to CoinMarketCap made by the app: UTC time, round, endpoint, parameters (no key), source
+  (pro/keyless), HTTP status, `error_code`, `credit_count`, response time, attempt number and a 400-character
+  response excerpt. The same log appears on `/demo` ("API call log").
 - The `/demo` page shows the last live snapshot, the endpoints called and the questions open today.
 
 ## Architecture
