@@ -5,7 +5,7 @@ Recomputes every number the app publishes from saved CoinMarketCap values,
 with no API key, no network and no dependencies (Python 3.8+ stdlib only).
 
     python3 replay/replay.py                      # uses the files in evidence/live/
-    python3 replay/replay.py path/to/obterDemo.json path/to/obterEvidencias.json
+    python3 replay/replay.py path/to/obterDemo.json path/to/obterEvidencias.json path/to/obterLedger.json
 
 What it checks
 1. Scoring rule: rebuilds the XP table from XP = round(40 - 44*(p-o)^2) + early bonus.
@@ -14,6 +14,8 @@ What it checks
 3. Tutor scoreboard: shows the tutor's Brier against the coin-flip baseline (0.25)
    and states whether the circuit breaker (confidence locked at 55%) must be on.
 4. API call log: counts calls, HTTP statuses, credits and source (pro / keyless).
+5. Full forecast ledger: re-derives every resolved outcome and recomputes the
+   tutor's hit rate and Brier from scratch, plus its side bias.
 Exit code 0 = every check passed; 1 = a published number does not match.
 """
 import json
@@ -24,6 +26,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 LIVE = os.path.join(HERE, "..", "evidence", "live")
 DEFAULT_DEMO = os.path.join(LIVE, "obterDemo-2026-11-24T0015Z.json")
 DEFAULT_LOG = os.path.join(LIVE, "obterEvidencias-2026-11-24T0015Z.json")
+DEFAULT_LEDGER = os.path.join(LIVE, "obterLedger-2026-11-24T0049Z.json")
 
 COIN_FLIP_BRIER = 0.25
 EARLY_BONUS = 2
@@ -58,6 +61,8 @@ def main():
     log_path = sys.argv[2] if len(sys.argv) > 2 else DEFAULT_LOG
     demo = json.load(open(demo_path, encoding="utf-8"))
     log = json.load(open(log_path, encoding="utf-8"))
+    ledger_path = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_LEDGER
+    ledger = json.load(open(ledger_path, encoding="utf-8")) if os.path.exists(ledger_path) else None
 
     print("1. Scoring rule (proper Brier, affine transform)")
     expected = {(0.55, True): 31, (0.75, True): 37, (0.95, True): 40,
@@ -121,6 +126,28 @@ def main():
     print("\n  last snapshot (source: %s)" % demo["snapshot"]["fonte"])
     for k, v in snap.items():
         print(f"    {k:<18} {v['valor']:>22,.2f}   last_updated {v['last_updated']}")
+
+    if ledger:
+        print("\n5. Full forecast ledger (every resolved question)")
+        qs = ledger["perguntas"]
+        wrong_outcome = [q for q in qs if outcome(q["valor_referencia"], q["valor_fechamento"]) != q["resultado"]]
+        check(f"all {len(qs)} outcomes re-derived from CMC values match", not wrong_outcome,
+              f"{len(wrong_outcome)} mismatches")
+        right = [q["previsao_tutor_lado"] == outcome(q["valor_referencia"], q["valor_fechamento"]) for q in qs]
+        scores = [brier(q["previsao_tutor_confianca"], r) for q, r in zip(qs, right)]
+        mean_b = sum(scores) / len(scores)
+        pub = ledger["placar"]["tutor"]
+        check("tutor hits recomputed = published", sum(right) == pub["acertos"], f"{sum(right)}/{len(qs)}")
+        check("tutor Brier recomputed = published", abs(mean_b - pub["brier"]) < 1e-9, f"{mean_b:.4f}")
+        check("ledger scoreboard = demo scoreboard", abs(pub["brier"] - demo["placar"]["tutor"]["brier"]) < 1e-9)
+        below_calls = sum(q["previsao_tutor_lado"] == "abaixo" for q in qs)
+        below_outcomes = sum(q["resultado"] == "abaixo" for q in qs)
+        print(f"  side bias: tutor said 'below' {below_calls}/{len(qs)} times; market closed below {below_outcomes}/{len(qs)}")
+        by_round = {}
+        for q, r, b in zip(qs, right, scores):
+            by_round.setdefault(q["rodada"], []).append((r, b))
+        for rnd, v in sorted(by_round.items()):
+            print(f"    round {rnd}: {sum(r for r, _ in v)}/{len(v)} right, Brier {sum(b for _, b in v)/len(v):.3f}")
 
     print("\nResult:", "ALL CHECKS PASSED" if not failures else f"{len(failures)} FAILED: {failures}")
     return 0 if not failures else 1
