@@ -120,16 +120,160 @@ export function calcularPlacar(resolvidas, respostas) {
   return {
     alunos: {
       respostas: total,
+      acertos,
       taxa: total ? acertos / total : null,
       brier: total ? somaBrier / total : null,
       precisao: total ? 1 - somaBrier / total : null,
     },
     tutor: {
       respostas: comPrevisao.length,
+      acertos: acertosTutor,
       taxa: comPrevisao.length ? acertosTutor / comPrevisao.length : null,
       brier: comPrevisao.length ? somaTutor / comPrevisao.length : null,
       precisao: comPrevisao.length ? 1 - somaTutor / comPrevisao.length : null,
+      equilibrio: equilibrioLados(resolvidas),
     },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* Tutor calibrado                                                     */
+/* ------------------------------------------------------------------ */
+
+export const CONFIANCA_PADRAO_TUTOR = 0.55;
+export const CONFIANCA_MAXIMA_TUTOR = 0.65;
+export const BRIER_FREIO_TUTOR = 0.25;
+export const JANELA_FREIO_TUTOR = 20;
+
+/** Lado que a variação de 24 h indica: positiva fecha acima, negativa fecha abaixo. */
+export function ladoDaVariacao(variacao) {
+  if (typeof variacao !== 'number' || !Number.isFinite(variacao) || variacao === 0) return null;
+  return variacao > 0 ? 'acima' : 'abaixo';
+}
+
+/** Brier médio do tutor nas últimas N perguntas resolvidas (a lista já vem da mais nova). */
+export function brierTutorRecente(resolvidas, janela = JANELA_FREIO_TUTOR) {
+  const comPrevisao = (resolvidas || [])
+    .filter(
+      (pergunta) =>
+        (pergunta.previsao_tutor_lado === 'acima' || pergunta.previsao_tutor_lado === 'abaixo') &&
+        (pergunta.resultado === 'acima' || pergunta.resultado === 'abaixo') &&
+        Number.isFinite(Number(pergunta.previsao_tutor_confianca))
+    )
+    .slice(0, janela);
+
+  if (!comPrevisao.length) return { amostra: 0, brier: null };
+
+  let soma = 0;
+  for (const pergunta of comPrevisao) {
+    const p = Number(pergunta.previsao_tutor_confianca);
+    const acertou = pergunta.previsao_tutor_lado === pergunta.resultado ? 1 : 0;
+    soma += (p - acertou) * (p - acertou);
+  }
+
+  return { amostra: comPrevisao.length, brier: soma / comPrevisao.length };
+}
+
+export const REGRA_VERSAO_TUTOR = 'v2-simetrica';
+/** Acima disso, o tutor está escolhendo o mesmo lado demais: vira alerta no AdminLog. */
+export const VIES_LADO_LIMITE = 0.75;
+
+export const TEXTOS_REGRA_TUTOR = {
+  dois_sinais: {
+    pt: 'Regra v2 simétrica: a variação de 24 h da métrica e a do BTC apontam para este lado, com 60% de confiança.',
+    en: 'Symmetric v2 rule: the metric 24 h change and the BTC 24 h change both point to this side, at 60% confidence.',
+  },
+  divergente: {
+    pt: 'Regra v2 simétrica: a variação do BTC diverge da métrica, então o lado segue a variação da própria métrica, com 55%.',
+    en: 'Symmetric v2 rule: the BTC change disagrees with the metric, so the side follows the metric own change, at 55%.',
+  },
+  padrao: {
+    pt: 'Regra v2 simétrica: só a variação de 24 h da métrica está disponível, com 55% de confiança.',
+    en: 'Symmetric v2 rule: only the metric 24 h change is available, at 55% confidence.',
+  },
+  so_btc: {
+    pt: 'Regra v2 simétrica: a métrica não tem variação de 24 h, então o lado segue a variação do BTC, com 55%.',
+    en: 'Symmetric v2 rule: the metric has no 24 h change, so the side follows the BTC change, at 55%.',
+  },
+  sem_sinal: {
+    pt: 'Regra v2 simétrica: sem variação de 24 h na métrica e no BTC, o lado padrão é acima, com 55%.',
+    en: 'Symmetric v2 rule: no 24 h change on the metric or on BTC, so the default side is above, at 55%.',
+  },
+  freio: {
+    pt: 'Freio automático: Brier médio do tutor acima de 0,25 nas últimas 20 perguntas resolvidas, confiança travada em 55%.',
+    en: 'Automatic brake: tutor average Brier above 0.25 over the last 20 resolved questions, confidence locked at 55%.',
+  },
+};
+
+/**
+ * Lado do tutor pela regra v2 simétrica, decidido por código e nunca pelo modelo.
+ * Manda a variação de 24 h da própria métrica; a do BTC confirma (60%) ou diverge.
+ * Fear and Greed fica só no texto, como contexto, e não vota em nenhum sentido.
+ */
+export function escolherLadoTutor({ metrica, dados, metricas, freio = false }) {
+  const sinais = [];
+  const ladoMetrica = ladoDaVariacao(dados?.variacao_24h);
+  if (ladoMetrica) {
+    sinais.push({ chave: 'variacao_metrica', lado: ladoMetrica, valor: Number(dados.variacao_24h) });
+  }
+
+  // Em btc_price o sinal do BTC é o próprio sinal da métrica: conta uma vez só.
+  const variacaoBtc =
+    metrica === 'btc_price' ? null : dadosDaMetrica(metricas, 'btc_price')?.variacao_24h;
+  const ladoBtc = ladoDaVariacao(variacaoBtc);
+  if (ladoBtc) {
+    sinais.push({ chave: 'variacao_btc', lado: ladoBtc, valor: Number(variacaoBtc) });
+  }
+
+  let regra = 'padrao';
+  if (ladoMetrica && ladoBtc) {
+    regra = ladoMetrica === ladoBtc ? 'dois_sinais' : 'divergente';
+  } else if (!ladoMetrica && ladoBtc) {
+    regra = 'so_btc';
+  } else if (!ladoMetrica && !ladoBtc) {
+    regra = 'sem_sinal';
+  }
+
+  let confianca = regra === 'dois_sinais' ? 0.6 : CONFIANCA_PADRAO_TUTOR;
+  if (freio) {
+    regra = 'freio';
+    confianca = CONFIANCA_PADRAO_TUTOR;
+  }
+
+  return {
+    lado: ladoMetrica || ladoBtc || 'acima',
+    confianca: Math.min(CONFIANCA_MAXIMA_TUTOR, confianca),
+    sinais,
+    regra,
+    regra_pt: TEXTOS_REGRA_TUTOR[regra].pt,
+    regra_en: TEXTOS_REGRA_TUTOR[regra].en,
+    freio: Boolean(freio),
+    regra_versao: REGRA_VERSAO_TUTOR,
+  };
+}
+
+/** Equilíbrio de lados do tutor: o que ele previu e o que o mercado fez, total e por versão de regra. */
+export function equilibrioLados(resolvidas) {
+  const vazio = () => ({ previsoes: { acima: 0, abaixo: 0 }, mercado: { acima: 0, abaixo: 0 } });
+  const total = vazio();
+  const versoes = new Map();
+
+  for (const pergunta of resolvidas || []) {
+    if (pergunta.previsao_tutor_lado !== 'acima' && pergunta.previsao_tutor_lado !== 'abaixo') continue;
+    if (pergunta.resultado !== 'acima' && pergunta.resultado !== 'abaixo') continue;
+
+    const versao = pergunta.regra_versao || 'sem_versao';
+    if (!versoes.has(versao)) versoes.set(versao, vazio());
+
+    for (const alvo of [total, versoes.get(versao)]) {
+      alvo.previsoes[pergunta.previsao_tutor_lado] += 1;
+      alvo.mercado[pergunta.resultado] += 1;
+    }
+  }
+
+  return {
+    total,
+    por_versao: [...versoes.entries()].map(([regra_versao, dados]) => ({ regra_versao, ...dados })),
   };
 }
 
@@ -185,6 +329,7 @@ function normalizarCotacoes(payload) {
         preco: quote.price,
         volume_24h: quote.volume_24h,
         variacao_24h: quote.percent_change_24h,
+        variacao_volume_24h: quote.volume_change_24h,
         last_updated: quote.last_updated,
       });
     }
@@ -205,13 +350,35 @@ function valeRepetir(status) {
   return status === 408 || status === 429 || status >= 500;
 }
 
+function lerJson(texto) {
+  if (!texto) return null;
+  try {
+    return JSON.parse(texto);
+  } catch {
+    return null;
+  }
+}
+
+/** Trecho da resposta para auditoria: sem chave, sem cabeçalhos, no máximo 400 caracteres. */
+function resumirTrecho(texto, bruto, chave, motivo) {
+  let limpo = bruto ? JSON.stringify(bruto?.data ?? bruto) : String(texto || motivo || '');
+  if (chave) limpo = limpo.split(chave).join('[chave removida]');
+  return limpo.replace(/\s+/g, ' ').trim().slice(0, 400);
+}
+
 /**
  * Lê a CoinMarketCap. Com CMC_API_KEY usa a API Pro; sem chave usa a API
  * pública de teste (keyless). A chave nunca sai do servidor.
  * Uma chamada por endpoint, já com todos os símbolos juntos, e até 3 novas
  * tentativas com espera crescente quando a CMC responde 429/5xx.
  */
-export async function buscarCmc(chave, registrarFalha, registrarQueda, rapido = false) {
+export async function buscarCmc(
+  chave,
+  registrarFalha,
+  registrarQueda,
+  rapido = false,
+  registrarChamada = null
+) {
   const pro = Boolean(chave);
   const base = pro
     ? 'https://pro-api.coinmarketcap.com'
@@ -232,6 +399,9 @@ export async function buscarCmc(chave, registrarFalha, registrarQueda, rapido = 
 
     for (let tentativa = 0; tentativa <= esperas.length; tentativa += 1) {
       let resposta = null;
+      let texto = '';
+      let bruto = null;
+      const inicioChamada = Date.now();
       try {
         resposta = await fetch(`${base}${caminho}`, {
           headers: cabecalhos,
@@ -241,12 +411,32 @@ export async function buscarCmc(chave, registrarFalha, registrarQueda, rapido = 
         motivo = String(erro?.message || erro);
       }
 
-      if (resposta?.ok) return resposta.json();
       if (resposta) {
-        motivo = `HTTP ${resposta.status}`;
-        if (!valeRepetir(resposta.status)) {
-          throw new Error(`CoinMarketCap ${caminho} respondeu ${resposta.status}`);
-        }
+        texto = await resposta.text().catch(() => '');
+        bruto = lerJson(texto);
+        if (!resposta.ok) motivo = `HTTP ${resposta.status}`;
+      }
+
+      // Evidência: cada tentativa, inclusive as que falham, entra no ApiCallLog.
+      if (registrarChamada) {
+        await registrarChamada({
+          caminho,
+          fonte: pro ? 'pro' : 'keyless',
+          status: resposta ? resposta.status : 0,
+          corpo: bruto,
+          trecho: resumirTrecho(texto, bruto, chave, motivo),
+          duracao_ms: Date.now() - inicioChamada,
+          tentativa: tentativa + 1,
+        });
+      }
+
+      if (resposta?.ok && bruto) return bruto;
+      if (resposta?.ok) {
+        motivo = 'resposta ilegível';
+        break;
+      }
+      if (resposta && !valeRepetir(resposta.status)) {
+        throw new Error(`CoinMarketCap ${caminho} respondeu ${resposta.status}`);
       }
 
       const espera = esperas[tentativa];
@@ -283,7 +473,12 @@ export async function buscarCmc(chave, registrarFalha, registrarQueda, rapido = 
 
     if (btc) {
       metricas.btc_price = { valor: btc.preco, variacao_24h: btc.variacao_24h, last_updated: btc.last_updated };
-      metricas.btc_volume_24h = { valor: btc.volume_24h, variacao_24h: btc.variacao_24h, last_updated: btc.last_updated };
+      // O volume tem variação própria na CMC (volume_change_24h); não herda a do preço.
+      metricas.btc_volume_24h = {
+        valor: btc.volume_24h,
+        variacao_24h: btc.variacao_volume_24h ?? null,
+        last_updated: btc.last_updated,
+      };
       resumo.btc = { price: btc.preco, volume_24h: btc.volume_24h, percent_change_24h: btc.variacao_24h };
     }
     if (eth) {
@@ -356,7 +551,7 @@ export async function buscarCmc(chave, registrarFalha, registrarQueda, rapido = 
         metricas_lidas: Object.keys(metricas),
       });
     }
-    const reserva = await buscarCmc('', registrarFalha, null, true);
+    const reserva = await buscarCmc('', registrarFalha, null, true, registrarChamada);
     reserva.erros = [...erros.map((erro) => `pro: ${erro}`), ...reserva.erros];
     return reserva;
   }
@@ -373,12 +568,11 @@ Fale como um mentor didático e neutro: ensine o conceito, nunca dê recomendaç
 nunca prometa resultado e nunca diga qual lado vai acontecer. Use apenas os números do snapshot
 informado e o conceito da aula.`;
 
-function normalizarLeitura(bruto) {
+function normalizarLeitura(bruto, lado) {
   const texto = (valor, padrao) => {
     const limpo = String(valor || '').trim();
     return limpo || padrao;
   };
-  const confianca = Math.min(0.95, Math.max(0.55, Number(bruto?.confianca) || 0.65));
 
   return {
     leitura_pt: {
@@ -389,9 +583,12 @@ function normalizarLeitura(bruto) {
       a_favor_acima: texto(bruto?.acima_en, 'The 24 h average still holds the price above the previous close.'),
       a_favor_abaixo: texto(bruto?.abaixo_en, 'Losing the previous close weakens the structure studied in the lesson.'),
     },
-    lado: bruto?.lado === 'abaixo' ? 'abaixo' : 'acima',
-    confianca,
-    motivo: texto(bruto?.motivo, 'Leitura técnica do fechamento anterior com o conceito da aula.'),
+    motivo: texto(
+      bruto?.motivo,
+      lado === 'abaixo'
+        ? 'A variação de 24 h do snapshot aponta para baixo neste fechamento.'
+        : 'A variação de 24 h do snapshot aponta para cima neste fechamento.'
+    ),
   };
 }
 
@@ -431,8 +628,11 @@ export function resumoContexto(metricas, idioma = 'pt') {
   return linhas.join('\n');
 }
 
-/** Leitura (dois argumentos) + previsão própria do tutor, em PT e EN. */
-export async function gerarLeituraTutor(base44, { aula, metrica, dados, metricas }) {
+/**
+ * Leitura (dois argumentos) + motivo do tutor, em PT e EN.
+ * O lado chega pronto da regra do jogo: o modelo só escreve o texto, coerente com ele.
+ */
+export async function gerarLeituraTutor(base44, { aula, metrica, dados, metricas, lado }) {
   const formato = METRICAS[metrica]?.formato || 'preco';
   const valorPt = formatarValor(dados.valor, formato, 'pt');
   const variacao = formatarVariacao(dados.variacao_24h, 'pt') || 'sem variação informada';
@@ -453,6 +653,8 @@ MÉTRICA DA PERGUNTA:
 - atualizado em: ${dados.last_updated || 'agora'}
 
 A PERGUNTA: o valor de fechamento de amanhã (00:00 UTC) fica ACIMA ou ABAIXO de ${valorPt}?
+O LADO JÁ FOI DECIDIDO PELA REGRA DO JOGO: ${lado === 'abaixo' ? 'ABAIXO' : 'ACIMA'}.
+Você não escolhe lado: apenas escreva o texto coerente com esse lado.
 
 Regras dos argumentos:
 - cada argumento (acima_pt, abaixo_pt, acima_en, abaixo_en) cita pelo menos um número real do snapshot
@@ -462,9 +664,8 @@ Regras dos argumentos:
 Devolva JSON com:
 - acima_pt e abaixo_pt: um argumento curto cada (no máximo 35 palavras), ligado ao conceito da aula;
 - acima_en e abaixo_en: os mesmos argumentos em inglês;
-- lado: sua previsão própria, "acima" ou "abaixo";
-- confianca: número entre 0.55 e 0.95;
-- motivo: uma frase curta (no máximo 25 palavras) justificando a previsão.`;
+- motivo: uma frase curta (no máximo 25 palavras) que justifique o lado
+  ${lado === 'abaixo' ? 'ABAIXO' : 'ACIMA'} já decidido, com os números do snapshot.`;
 
   const resposta = await base44.asServiceRole.integrations.Core.InvokeLLM({
     prompt,
@@ -475,18 +676,16 @@ Devolva JSON com:
         abaixo_pt: { type: 'string' },
         acima_en: { type: 'string' },
         abaixo_en: { type: 'string' },
-        lado: { type: 'string', enum: ['acima', 'abaixo'] },
-        confianca: { type: 'number' },
         motivo: { type: 'string' },
       },
-      required: ['acima_pt', 'abaixo_pt', 'acima_en', 'abaixo_en', 'lado', 'confianca', 'motivo'],
+      required: ['acima_pt', 'abaixo_pt', 'acima_en', 'abaixo_en', 'motivo'],
     },
   });
 
-  return normalizarLeitura(resposta);
+  return normalizarLeitura(resposta, lado);
 }
 
-export function leituraPadrao(metrica, dados) {
+export function leituraPadrao(metrica, dados, lado = 'acima') {
   const formato = METRICAS[metrica]?.formato || 'preco';
   const valorPt = formatarValor(dados?.valor, formato, 'pt');
   const valorEn = formatarValor(dados?.valor, formato, 'en');
@@ -500,9 +699,10 @@ export function leituraPadrao(metrica, dados) {
       a_favor_acima: `While the price holds above ${valorEn}, the structure from the lesson stays valid and the close can remain higher.`,
       a_favor_abaixo: `A close below ${valorEn} invalidates the area studied in the lesson and opens room for lower levels.`,
     },
-    lado: 'acima',
-    confianca: 0.65,
-    motivo: 'Leitura padrão do fechamento anterior, usada quando o tutor não respondeu.',
+    motivo:
+      lado === 'abaixo'
+        ? 'Leitura padrão do snapshot, usada quando o tutor não respondeu: variação de 24 h para baixo.'
+        : 'Leitura padrão do snapshot, usada quando o tutor não respondeu: variação de 24 h para cima.',
   };
 }
 
