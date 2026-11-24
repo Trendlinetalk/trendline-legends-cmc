@@ -13,6 +13,7 @@
 |---|---|
 | Replay every published number offline (no key, no network, stdlib only) | `python3 replay/replay.py` |
 | Every CoinMarketCap call the app made (time, endpoint, HTTP status, credits, source) | [live JSON](https://trade-legend-quest.base44.app/functions/obterEvidencias) · [saved copy](evidence/live/) |
+| Every resolved forecast: reference and closing CMC values, outcome, tutor side and confidence | [live JSON](https://trade-legend-quest.base44.app/functions/obterLedger) · [saved copy](evidence/live/) |
 | Today's questions, last snapshot and tutor scoreboard | [live JSON](https://trade-legend-quest.base44.app/functions/obterDemo) · [/demo](https://trendline365.com/demo) |
 
 Sample output of the replay (24 Nov 2026):
@@ -29,8 +30,21 @@ Sample output of the replay (24 Nov 2026):
   verdict: tutor is WORSE than a coin flip -> circuit breaker ON (confidence locked at 55%)
 4. CoinMarketCap API call log
   round 2026-11-24: 3 calls, HTTP [200], 3 credits, source ['pro']
+5. Full forecast ledger (every resolved question)
+  [OK ] all 21 outcomes re-derived from CMC values match
+  [OK ] tutor Brier recomputed = published - 0.3067
+  side bias: tutor said 'below' 18/21 times; market closed below 9/21
 Result: ALL CHECKS PASSED
 ```
+
+**What the ledger taught us.** In its first four days the tutor read *Extreme Fear* as a reason to
+expect lower numbers and said "below" 18 times out of 21; the market closed below only 9 times.
+That is the classic sentiment trap our lessons warn students about, caught by the same scoring rule we
+apply to them. What is in production now limits the damage: confidence comes only from counted, agreeing
+signals (55/60/65%), and a circuit breaker holds it at 55% while the tutor is worse than a coin flip.
+The side bias itself is not fixed yet; the ledger will show whether it persists.
+Note: round 2026-11-20 resolved at 13:05 UTC on 21 Nov instead of 00:00 because the keyless endpoint
+returned HTTP 429 that night; it is kept in the ledger as recorded.
 
 ## Why a forecast ledger
 
