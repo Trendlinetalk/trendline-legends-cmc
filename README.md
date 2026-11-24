@@ -1,7 +1,45 @@
-# Trendline Legends — learn crypto markets by forecasting with live CoinMarketCap data
+# Trendline Legends — a calibration ledger for crypto learners, graded daily by CoinMarketCap
+
+> **Our own AI tutor is graded every day against CoinMarketCap data, and we publish the result:
+> 21 resolved forecasts, 38% right, Brier 0.307 — worse than a coin flip (0.250).**
+> So the app locks its confidence at 55% until it earns it back. Every number replays offline.
 
 **Live app:** https://trendline365.com · **Judge demo (no login):** https://trendline365.com/demo
 **Track:** AI Agents and Automation · **Hackathon:** Build with CMC (DoraHacks, Nov–Dec 2026)
+
+## Check it in 30 seconds
+
+| What | Where |
+|---|---|
+| Replay every published number offline (no key, no network, stdlib only) | `python3 replay/replay.py` |
+| Every CoinMarketCap call the app made (time, endpoint, HTTP status, credits, source) | [live JSON](https://trade-legend-quest.base44.app/functions/obterEvidencias) · [saved copy](evidence/live/) |
+| Today's questions, last snapshot and tutor scoreboard | [live JSON](https://trade-legend-quest.base44.app/functions/obterDemo) · [/demo](https://trendline365.com/demo) |
+
+Sample output of the replay (24 Nov 2026):
+
+```
+2. Resolved question, re-derived from CoinMarketCap values
+  At 00:00 UTC tomorrow, will BTC's 24-hour volume be above or below US$ 26.33 billion?
+  reference 26,331,335,558 at 2026-11-23T00:07:05.000Z
+  close     44,829,542,097 at 2026-11-24T00:02:05.000Z
+  [OK ] outcome matches the published result
+  tutor said 'below' at 65% -> wrong, Brier 0.4225
+3. Tutor scoreboard vs coin flip
+  21 resolved answers, 8 right (38%), mean Brier 0.307 | coin flip = 0.250
+  verdict: tutor is WORSE than a coin flip -> circuit breaker ON (confidence locked at 55%)
+4. CoinMarketCap API call log
+  round 2026-11-24: 3 calls, HTTP [200], 3 credits, source ['pro']
+Result: ALL CHECKS PASSED
+```
+
+## Why a forecast ledger
+
+Most crypto tools show what a number *is*. Almost none record what someone *expected* it to be the day
+before, and then check. That history cannot be fetched later from any API: a forecast only counts if it
+was written down before the data existed. Trendline Legends writes one down every day — for every student
+and for its own AI tutor — and lets CoinMarketCap settle it 24 hours later.
+
+## What it is
 
 Trendline Legends is a bilingual (Portuguese/English) learning game for crypto traders and investors.
 It has **500 text lessons in 7 realms** — from reading a candle to derivatives, tokenization, portfolio
@@ -80,6 +118,9 @@ paid plans have **no influence** on scores or ranking.
   (pro/keyless), HTTP status, `error_code`, `credit_count`, response time, attempt number and a 400-character
   response excerpt. The same log appears on `/demo` ("API call log").
 - The `/demo` page shows the last live snapshot, the endpoints called and the questions open today.
+- [`evidence/live/`](evidence/live/) — saved copies of both public JSON endpoints, read on 24 Nov 2026 00:15 UTC.
+- [`replay/replay.py`](replay/replay.py) — recomputes the XP table, a resolved outcome, the tutor's Brier
+  verdict and the credit count from those copies. Exit code 1 if any published number does not match.
 
 ## Architecture
 
