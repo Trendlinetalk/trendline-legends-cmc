@@ -1,7 +1,7 @@
 # Trendline Legends — a calibration ledger for crypto learners, graded daily by CoinMarketCap
 
 > **Our own AI tutor is graded every day against CoinMarketCap data, and we publish the result:
-> 21 resolved forecasts, 38% right, Brier 0.307 — worse than a coin flip (0.250).**
+> 26 resolved forecasts, 50% right, Brier 0.287 — still worse than a coin flip (0.250).**
 > So the app locks its confidence at 55% until it earns it back. Every number replays offline.
 
 **Live app:** https://trendline365.com · **Judge demo (no login):** https://trendline365.com/demo
@@ -16,7 +16,7 @@
 | Every resolved forecast: reference and closing CMC values, outcome, tutor side and confidence | [live JSON](https://trade-legend-quest.base44.app/functions/obterLedger) · [saved copy](evidence/live/) |
 | Today's questions, last snapshot and tutor scoreboard | [live JSON](https://trade-legend-quest.base44.app/functions/obterDemo) · [/demo](https://trendline365.com/demo) |
 
-Sample output of the replay (24 Nov 2026):
+Sample output of the replay (25 Nov 2026):
 
 ```
 2. Resolved question, re-derived from CoinMarketCap values
@@ -26,14 +26,14 @@ Sample output of the replay (24 Nov 2026):
   [OK ] outcome matches the published result
   tutor said 'below' at 65% -> wrong, Brier 0.4225
 3. Tutor scoreboard vs coin flip
-  21 resolved answers, 8 right (38%), mean Brier 0.307 | coin flip = 0.250
+  26 resolved answers, 13 right (50%), mean Brier 0.287 | coin flip = 0.250
   verdict: tutor is WORSE than a coin flip -> circuit breaker ON (confidence locked at 55%)
 4. CoinMarketCap API call log
-  round 2026-11-24: 3 calls, HTTP [200], 3 credits, source ['pro']
+  round 2026-11-25 @ 00:02 UTC: 3 calls, HTTP [200], 3 credits, source ['pro']
 5. Full forecast ledger (every resolved question)
-  [OK ] all 21 outcomes re-derived from CMC values match
-  [OK ] tutor Brier recomputed = published - 0.3067
-  side bias: tutor said 'below' 18/21 times; market closed below 9/21
+  [OK ] all 26 outcomes re-derived from CMC values match
+  [OK ] tutor Brier recomputed = published - 0.2866
+  side bias: tutor said 'below' 23/26 times; market closed below 14/26
 Result: ALL CHECKS PASSED
 ```
 
@@ -42,7 +42,10 @@ expect lower numbers and said "below" 18 times out of 21; the market closed belo
 That is the classic sentiment trap our lessons warn students about, caught by the same scoring rule we
 apply to them. What is in production now limits the damage: confidence comes only from counted, agreeing
 signals (55/60/65%), and a circuit breaker holds it at 55% while the tutor is worse than a coin flip.
-The side bias itself is not fixed yet; the ledger will show whether it persists.
+From the 25 Nov round the side is chosen by code with a symmetric rule (v2: follow the sign of the metric's own
+24h change, BTC as confirmation; Fear & Greed is context only) and every question records `regra_versao`, so the
+ledger scores the old and new rule separately. On 24 Nov the market fell on all five metrics and the old rule's
+"below" calls were 5/5 — which is exactly why four days, or five, prove nothing either way.
 Note: round 2026-11-20 resolved at 13:05 UTC on 21 Nov instead of 00:00 because the keyless endpoint
 returned HTTP 429 that night; it is kept in the ledger as recorded.
 
@@ -132,7 +135,7 @@ paid plans have **no influence** on scores or ranking.
   (pro/keyless), HTTP status, `error_code`, `credit_count`, response time, attempt number and a 400-character
   response excerpt. The same log appears on `/demo` ("API call log").
 - The `/demo` page shows the last live snapshot, the endpoints called and the questions open today.
-- [`evidence/live/`](evidence/live/) — saved copies of both public JSON endpoints, read on 24 Nov 2026 00:15 UTC.
+- [`evidence/live/`](evidence/live/) — saved copies of the public JSON endpoints (ledger, call log, demo), refreshed after each daily round.
 - [`replay/replay.py`](replay/replay.py) — recomputes the XP table, a resolved outcome, the tutor's Brier
   verdict and the credit count from those copies. Exit code 1 if any published number does not match.
 
