@@ -24,9 +24,9 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 LIVE = os.path.join(HERE, "..", "evidence", "live")
-DEFAULT_DEMO = os.path.join(LIVE, "obterDemo-2026-11-24T0015Z.json")
-DEFAULT_LOG = os.path.join(LIVE, "obterEvidencias-2026-11-24T0015Z.json")
-DEFAULT_LEDGER = os.path.join(LIVE, "obterLedger-2026-11-24T0049Z.json")
+DEFAULT_DEMO = os.path.join(LIVE, "obterDemo-2026-11-25T0020Z.json")
+DEFAULT_LOG = os.path.join(LIVE, "obterEvidencias-2026-11-25T0020Z.json")
+DEFAULT_LEDGER = os.path.join(LIVE, "obterLedger-2026-11-25T0020Z.json")
 
 COIN_FLIP_BRIER = 0.25
 EARLY_BONUS = 2
@@ -109,9 +109,10 @@ def main():
 
     print("\n4. CoinMarketCap API call log")
     calls = log["chamadas"]
+    # One collection = the calls made within the same minute (a round may also hold manual test runs).
     by_round = {}
     for c in calls:
-        by_round.setdefault(c["rodada"], []).append(c)
+        by_round.setdefault(c["rodada"] + " @ " + c["capturado_em"][11:16] + " UTC", []).append(c)
     for rnd, cs in sorted(by_round.items()):
         credits = sum(c.get("credit_count") or 0 for c in cs)
         srcs = sorted({c["fonte"] for c in cs})
@@ -119,7 +120,7 @@ def main():
         print(f"  round {rnd}: {len(cs)} calls, HTTP {statuses}, {credits} credits, source {srcs}")
     check("every logged call returned HTTP 200", all(c["http_status"] == 200 for c in calls))
     check("no keyless fallback in the log", all(c["fonte"] == "pro" for c in calls))
-    check("a full daily round costs 3 credits",
+    check("every collection costs 3 credits",
           all(sum(c.get("credit_count") or 0 for c in cs) == 3 for cs in by_round.values()))
 
     snap = demo["snapshot"]["metricas"]
