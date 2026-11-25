@@ -1,0 +1,91 @@
+{
+ "ok": true,
+ "endpoints": [
+  "/v3/cryptocurrency/quotes/latest?id=1,1027&convert=USD",
+  "/v1/global-metrics/quotes/latest?convert=USD",
+  "/v3/fear-and-greed/latest"
+ ],
+ "snapshot": {
+  "capturado_em": "2026-11-25T00:02:05.296Z",
+  "fonte": "pro",
+  "metricas": {
+   "btc_price": {
+    "valor": 59693.4291824811,
+    "variacao_24h": -2.426045839447,
+    "last_updated": null
+   },
+   "btc_volume_24h": {
+    "valor": 32724664961.462517,
+    "variacao_24h": -27.096518934282,
+    "last_updated": null
+   },
+   "eth_price": {
+    "valor": 1676.085221515199,
+    "variacao_24h": -1.885781884351,
+    "last_updated": null
+   },
+   "total_market_cap": {
+    "valor": 2049747070552.511,
+    "variacao_24h": null,
+    "last_updated": null
+   },
+   "btc_dominance": {
+    "valor": 58.607571076931,
+    "variacao_24h": -0.227732433069,
+    "last_updated": null
+   },
+   "fear_greed": {
+    "valor": 9,
+    "variacao_24h": null,
+    "last_updated": null,
+    "classificacao": "Extreme fear"
+   }
+  },
+  "endpoints_chamados": [
+   "/v3/cryptocurrency/quotes/latest?id=1,1027&convert=USD",
+   "/v1/global-metrics/quotes/latest?convert=USD",
+   "/v3/fear-and-greed/latest"
+  ],
+  "erros": []
+ },
+ "destaque": {
+  "aula_titulo_en": "Support and resistance",
+  "pergunta_en": "At 00:00 UTC tomorrow, will BTC close above or below US$ 61,175?",
+  "metrica": "btc_price",
+  "ativo": "BTC",
+  "endpoint_consulta": "/v3/cryptocurrency/quotes/latest?id=1,1027&convert=USD",
+  "valor_referencia": 61174.99207999211,
+  "horario_referencia": "2026-11-24T00:02:05.000Z",
+  "fecha_respostas_em": "2026-11-24T12:00:00.000Z",
+  "resolve_em": "2026-11-25T00:00:00.000Z"
+ },
+ "exemplo": {
+  "aula_titulo_en": "Volume and liquidity",
+  "pergunta_en": "At 00:00 UTC tomorrow, will BTC's 24-hour volume be above or below US$ 26.33 billion?",
+  "metrica": "btc_volume_24h",
+  "ativo": "BTC",
+  "endpoint_consulta": "/v3/cryptocurrency/quotes/latest?id=1,1027&convert=USD",
+  "valor_referencia": 26331335558.048977,
+  "horario_referencia": "2026-11-23T00:07:05.000Z",
+  "valor_fechamento": 44829542097.19261,
+  "horario_fechamento": "2026-11-24T00:02:05.000Z",
+  "resultado": "acima",
+  "previsao_tutor_lado": "abaixo",
+  "previsao_tutor_confianca": 0.65,
+  "xp_exemplo": 35
+ },
+ "placar": {
+  "alunos": {
+   "respostas": 0,
+   "taxa": null,
+   "brier": null
+  },
+  "tutor": {
+   "respostas": 26,
+   "taxa": 0.5,
+   "brier": 0.28663846153846156
+  }
+ },
+ "perguntas_abertas": 5,
+ "_note": "Trimmed copy of obterDemo read at 2026-11-25T00:20Z (snapshot values, scoreboard; the resolved example kept from 24 Nov). Numbers unchanged. last_updated not copied for this read."
+}

@@ -1,0 +1,142 @@
+{
+ "ok": true,
+ "limite": 50,
+ "total": 12,
+ "gerado_em": "2026-11-25T00:20Z",
+ "chamadas": [
+  {
+   "capturado_em": "2026-11-25T00:02:05.567Z",
+   "rodada": "2026-11-25",
+   "endpoint": "/v3/fear-and-greed/latest",
+   "parametros": null,
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-25T00:02:05.457Z",
+   "rodada": "2026-11-25",
+   "endpoint": "/v1/global-metrics/quotes/latest",
+   "parametros": "convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-25T00:02:05.452Z",
+   "rodada": "2026-11-25",
+   "endpoint": "/v3/cryptocurrency/quotes/latest",
+   "parametros": "id=1,1027&convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-24T01:40:47.037Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v3/cryptocurrency/quotes/latest",
+   "parametros": "id=1,1027&convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-24T01:40:46.933Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v1/global-metrics/quotes/latest",
+   "parametros": "convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-24T01:40:46.926Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v3/fear-and-greed/latest",
+   "parametros": null,
+   "fonte": "pro",
+   "http_status": 200,
+   "credit_count": 1,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-24T00:03:50.465Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v3/cryptocurrency/quotes/latest",
+   "parametros": "id=1,1027&convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": null,
+   "credit_count": 1,
+   "duracao_ms": 218,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-24T00:03:50.461Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v3/fear-and-greed/latest",
+   "parametros": null,
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": null,
+   "credit_count": 1,
+   "duracao_ms": 214,
+   "tentativa": 1,
+   "trecho": "{\"value\":9,\"update_time\":\"2026-11-23T23:53:10.153Z\",\"value_classification\":\"Extreme fear\"}"
+  },
+  {
+   "capturado_em": "2026-11-24T00:03:50.426Z",
+   "rodada": "2026-11-24",
+   "endpoint": "/v1/global-metrics/quotes/latest",
+   "parametros": "convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": 0,
+   "credit_count": 1,
+   "duracao_ms": 179,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-23T18:32:40.468Z",
+   "rodada": "2026-11-23",
+   "endpoint": "/v1/global-metrics/quotes/latest",
+   "parametros": "convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": 0,
+   "credit_count": 1,
+   "duracao_ms": 212,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-23T18:32:40.402Z",
+   "rodada": "2026-11-23",
+   "endpoint": "/v3/cryptocurrency/quotes/latest",
+   "parametros": "id=1,1027&convert=USD",
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": null,
+   "credit_count": 1,
+   "duracao_ms": 146,
+   "tentativa": 1
+  },
+  {
+   "capturado_em": "2026-11-23T18:32:40.401Z",
+   "rodada": "2026-11-23",
+   "endpoint": "/v3/fear-and-greed/latest",
+   "parametros": null,
+   "fonte": "pro",
+   "http_status": 200,
+   "error_code": null,
+   "credit_count": 1,
+   "duracao_ms": 145,
+   "tentativa": 1
+  }
+ ],
+ "_note": "Copy of https://trade-legend-quest.base44.app/functions/obterEvidencias read at 2026-11-25T00:20Z; response excerpts trimmed. The 01:40 UTC calls on 24 Nov were a manual test of the collector after a code change."
+}
